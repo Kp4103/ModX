@@ -2,7 +2,8 @@
 
 <div align="center">
 
-![ModX-pfp](https://postimg.cc/ppNRX3gF)
+![ModX pfp](https://github.com/user-attachments/assets/ce145d8f-dc2d-4394-80cb-8a571d057a24)
+
 
 **A powerful, modern Discord moderation bot built with slash commands**
 
