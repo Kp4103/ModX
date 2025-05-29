@@ -17,7 +17,6 @@ Desktop.ini
 
 # Environment files
 .env
-.env.*
 
 # Build output
 dist/

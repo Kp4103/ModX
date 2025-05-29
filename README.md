@@ -24,13 +24,24 @@
 - **Timeout Users** - Temporarily silence members (1 minute to 28 days)
 - **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages)
 
+### Auto-Moderation System
+- **Real-time Spam Detection** - Automatically catches and removes spam
+- **Caps Filter** - Removes messages with excessive CAPITAL LETTERS
+- **Mention Spam Protection** - Prevents mass @mention abuse
+- **Character Spam Detection** - Stops repeated character spam (aaaaa)
+- **Rate Limiting** - Prevents rapid message flooding
+- **Smart Bypass System** - Admins and trusted roles skip auto-mod rules
+- **Configurable Thresholds** - Customize limits for your server's needs
+
 ### Advanced Features
 - **Flexible Temporary Bans** - Choose between minutes, hours, or days
 - **Automatic Unban System** - Scheduled automatic unbans for temporary bans
 - **Smart Ban Management** - Manual unban with temp ban cancellation
+- **Ephemeral Admin Messages** - Private configuration messages for admins
 - **Rich Embeds** - Professional, color-coded responses
 - **Permission Integration** - Commands only show for authorized users
 - **Intelligent Validation** - Prevents invalid time combinations and user errors
+- **Robust Error Handling** - Graceful error management with helpful feedback
 
 ### Modern Interface
 - **Slash Commands** - Modern Discord UI with auto-completion and dropdowns
@@ -39,9 +50,11 @@
 - **Error Handling** - Graceful error management with helpful feedback
 
 ### Coming Soon
-- 🛡️ **Auto-Moderation** - Automatic spam and toxicity detection
-- 📊 **Moderation Logs** - Comprehensive action logging with channels
+- 🔗 **Link Filtering** - Control and whitelist external links
 - ⚠️ **Warning System** - Progressive punishment system with escalation
+- 📊 **Moderation Logs** - Comprehensive action logging with channels
+- 🛡️ **Raid Protection** - Detect and prevent server raids
+- 🚫 **Custom Word Filters** - Block specific words and phrases
 - 🔧 **Web Dashboard** - Easy server configuration interface
 - 📈 **Analytics** - Detailed moderation statistics and trends
 
@@ -91,6 +104,15 @@
 | `/timeout <user> <duration> [reason]` | Timeout a member (1-40320 minutes) | Moderate Members |
 | `/clear <amount>` | Delete 1-100 messages at once | Manage Messages |
 
+### Auto-Moderation Commands
+
+| Command | Description | Permissions Required |
+|---------|-------------|---------------------|
+| `/automod toggle <enabled>` | Enable/disable auto-moderation | Administrator |
+| `/automod settings` | View current auto-mod configuration | Administrator |
+| `/automod caps <percentage>` | Set caps limit (1-100%) | Administrator |
+| `/automod mentions <count>` | Set mention limit (1-20) | Administrator |
+
 ### Utility Commands
 
 | Command | Description | Permissions Required |
@@ -128,6 +150,33 @@
 | **Minutes** | Quick cooldowns, immediate responses | 5, 15, 30, 60 minutes |
 | **Hours** | Standard punishments, overnight bans | 2, 6, 12, 24 hours |
 | **Days** | Serious violations, extended breaks | 1, 3, 7, 14, 30 days |
+
+### Auto-Moderation Setup
+
+```bash
+# Enable auto-moderation
+/automod toggle true
+
+# View current settings
+/automod settings
+
+# Configure caps filter (messages with >80% caps will be removed)
+/automod caps 80
+
+# Set mention limit (max 3 mentions per message)
+/automod mentions 3
+
+# Disable auto-moderation if needed
+/automod toggle false
+```
+
+### Auto-Mod Features in Action
+
+**What Gets Automatically Removed:**
+- `"THIS IS ALL CAPS SPAM!!!"` (excessive capitals)
+- `"@everyone @here @user1 @user2 @user3 @user4"` (too many mentions)
+- `"hahahahahahahaha"` (repeated character spam)
+- Multiple rapid messages from same user (rate limiting)
 
 **Smart Duration Display:**
 - `90 minutes` → Shows as "1 hour(s) and 30 minute(s)"
@@ -182,14 +231,12 @@ Replace `YOUR_BOT_CLIENT_ID` with your bot's client ID from the Discord Develope
 ```
 ModX/
 ├── index.js              # Main bot file
-├── deploy-commands.js    # Command registration script
 ├── package.json          # Dependencies and scripts
 ├── .env.example         # Environment template
 ├── .env                 # Your environment (don't commit!)
 └── README.md            # This file
 ```
 
-``
 ### Testing Commands
 
 For faster development, use guild-specific commands:
@@ -251,12 +298,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🌟 Roadmap
 
 ### Version 2.0 (Coming Soon)
-- [ ] Auto-moderation system with spam detection
-- [ ] Warning system with escalation and history
+- [ ] Link filtering and whitelist system
+- [ ] Warning system with escalation and history tracking
 - [ ] Comprehensive moderation logs with channel setup
-- [ ] Custom word filters and automod rules
+- [ ] Custom word filters and phrase detection
 - [ ] Raid protection and mass action prevention
 - [ ] Database integration for persistent data
+- [ ] Role-based auto-mod bypass system
 
 ### Version 3.0 (Future)
 - [ ] Web dashboard for easy configuration
@@ -265,6 +313,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Plugin system for custom extensions
 - [ ] Appeal system integration
 - [ ] Advanced role management tools
+- [ ] Integration with other Discord bots
 
 ---
 
