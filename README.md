@@ -24,6 +24,14 @@
 - **Timeout Users** - Temporarily silence members (1 minute to 28 days)
 - **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages)
 
+### Warning System
+- **Progressive Discipline** - Issue warnings with automatic escalation
+- **Severity Levels** - Minor, Moderate, and Severe warning classifications
+- **Auto-Escalation** - 3 warnings → timeout, 5 → kick, 7 → ban
+- **Warning Management** - View, remove, or clear warnings with full audit trail
+- **User Notifications** - DM users when warned with clear explanations
+- **Unique Warning IDs** - Easy tracking and management of individual warnings
+
 ### Auto-Moderation System
 - **Real-time Spam Detection** - Automatically catches and removes spam
 - **Caps Filter** - Removes messages with excessive CAPITAL LETTERS
@@ -37,8 +45,10 @@
 - **Flexible Temporary Bans** - Choose between minutes, hours, or days
 - **Automatic Unban System** - Scheduled automatic unbans for temporary bans
 - **Smart Ban Management** - Manual unban with temp ban cancellation
+- **Progressive Warning System** - Automated escalation from warnings to punishments
+- **Comprehensive Audit Trail** - Complete history of all moderation actions
 - **Ephemeral Admin Messages** - Private configuration messages for admins
-- **Rich Embeds** - Professional, color-coded responses
+- **Rich Embeds** - Professional, color-coded responses with clear formatting
 - **Permission Integration** - Commands only show for authorized users
 - **Intelligent Validation** - Prevents invalid time combinations and user errors
 - **Robust Error Handling** - Graceful error management with helpful feedback
@@ -51,12 +61,12 @@
 
 ### Coming Soon
 - 🔗 **Link Filtering** - Control and whitelist external links
-- ⚠️ **Warning System** - Progressive punishment system with escalation
-- 📊 **Moderation Logs** - Comprehensive action logging with channels
+- 📊 **Moderation Logs** - Comprehensive action logging with channels  
 - 🛡️ **Raid Protection** - Detect and prevent server raids
 - 🚫 **Custom Word Filters** - Block specific words and phrases
 - 🔧 **Web Dashboard** - Easy server configuration interface
 - 📈 **Analytics** - Detailed moderation statistics and trends
+- 🔄 **Appeal System** - Allow users to appeal warnings and bans
 
 ## 🚀 Quick Start
 
@@ -104,6 +114,15 @@
 | `/timeout <user> <duration> [reason]` | Timeout a member (1-40320 minutes) | Moderate Members |
 | `/clear <amount>` | Delete 1-100 messages at once | Manage Messages |
 
+### Warning System Commands
+
+| Command | Description | Permissions Required |
+|---------|-------------|---------------------|
+| `/warn <user> <reason> [severity]` | Issue a warning to a user | Manage Messages |
+| `/warnings <user>` | View user's warning history | Manage Messages |
+| `/removewarn <user> <warning_id>` | Remove specific warning | Manage Messages |
+| `/clearwarnings <user> [reason]` | Clear all warnings for user | Kick Members |
+
 ### Auto-Moderation Commands
 
 | Command | Description | Permissions Required |
@@ -150,6 +169,38 @@
 | **Minutes** | Quick cooldowns, immediate responses | 5, 15, 30, 60 minutes |
 | **Hours** | Standard punishments, overnight bans | 2, 6, 12, 24 hours |
 | **Days** | Serious violations, extended breaks | 1, 3, 7, 14, 30 days |
+
+### Warning System Usage
+
+```bash
+# Issue warnings with different severity levels
+/warn @spammer Excessive advertising moderate
+/warn @toxic_user Harassment and threats severe
+/warn @rule_breaker Minor rule violation minor
+
+# Check user's warning history
+/warnings @user
+
+# Manage warnings
+/removewarn @user W1699123456abc  # Remove specific warning
+/clearwarnings @user Clean slate  # Clear all warnings
+```
+
+### Warning Auto-Escalation
+
+ModX automatically escalates punishments based on warning count:
+
+| Warning Count | Action | Duration |
+|---------------|--------|----------|
+| 3 warnings | Automatic Timeout | 60 minutes |
+| 5 warnings | Automatic Kick | Immediate |
+| 7 warnings | Automatic Ban | Permanent |
+
+**Escalation Features:**
+- Real-time escalation when thresholds are reached
+- DM notifications to users explaining their status
+- Complete audit trail of all escalation actions
+- Bypass protection for administrators
 
 ### Auto-Moderation Setup
 
@@ -237,14 +288,6 @@ ModX/
 └── README.md            # This file
 ```
 
-### Testing Commands
-
-For faster development, use guild-specific commands:
-
-1. Get your server ID (Right-click server → Copy Server ID)
-2. Update `GUILD_ID` in `deploy-commands.js`
-3. Run `node deploy-commands.js` for instant updates
-
 ## 📊 Performance
 
 - **Memory Usage**: ~50MB average
@@ -299,21 +342,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Version 2.0 (Coming Soon)
 - [ ] Link filtering and whitelist system
-- [ ] Warning system with escalation and history tracking
 - [ ] Comprehensive moderation logs with channel setup
 - [ ] Custom word filters and phrase detection
 - [ ] Raid protection and mass action prevention
-- [ ] Database integration for persistent data
+- [ ] Database integration for persistent data storage
 - [ ] Role-based auto-mod bypass system
+- [ ] Enhanced warning system with expiration dates
 
 ### Version 3.0 (Future)
 - [ ] Web dashboard for easy configuration
 - [ ] Advanced analytics and moderation insights
 - [ ] Multi-language support and localization
 - [ ] Plugin system for custom extensions
-- [ ] Appeal system integration
-- [ ] Advanced role management tools
-- [ ] Integration with other Discord bots
+- [ ] Appeal system integration with ticket management
+- [ ] Advanced role management and permission tools
+- [ ] Integration with other Discord bots and services
 
 ---
 

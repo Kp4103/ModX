@@ -1,15 +1,15 @@
-// Discord Moderation Bot - With Auto-Moderation
+// Discord Moderation Bot - With Auto-Moderation and Warning System
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, SlashCommandBuilder, REST, Routes } = require('discord.js');
 
 // Create the Discord client
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,           // See servers
-        GatewayIntentBits.GuildMessages,    // Read messages
-        GatewayIntentBits.MessageContent,   // Read message content
-        GatewayIntentBits.GuildMembers,     // See members (for kick/ban)
-        GatewayIntentBits.GuildModeration   // Moderation actions
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildModeration
     ]
 });
 
@@ -17,8 +17,9 @@ const client = new Client({
 const tempBans = new Map();
 const serverConfigs = new Map();
 const userMessageHistory = new Map();
+const userWarnings = new Map();
 
-// Default auto-mod configuration
+// Default configuration
 function getDefaultConfig() {
     return {
         autoMod: {
@@ -30,12 +31,22 @@ function getDefaultConfig() {
             maxMessagesInWindow: 4,
             punishmentType: 'delete'
         },
+        warnings: {
+            enabled: true,
+            autoEscalation: true,
+            thresholds: {
+                timeout: 3,
+                kick: 5,
+                ban: 7
+            },
+            timeoutDuration: 60,
+            warningExpiry: 30
+        },
         logChannel: null,
         bypassRoles: []
     };
 }
 
-// Get server configuration
 function getServerConfig(guildId) {
     if (!serverConfigs.has(guildId)) {
         serverConfigs.set(guildId, getDefaultConfig());
@@ -132,6 +143,63 @@ const commands = [
                 .setDescription('Reason for the timeout')
                 .setRequired(false))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ModerateMembers),
+    
+    new SlashCommandBuilder()
+        .setName('warn')
+        .setDescription('Issue a warning to a user')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to warn')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for the warning')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('severity')
+                .setDescription('Warning severity level')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Minor', value: 'minor' },
+                    { name: 'Moderate', value: 'moderate' },
+                    { name: 'Severe', value: 'severe' }
+                ))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages),
+    
+    new SlashCommandBuilder()
+        .setName('warnings')
+        .setDescription('View warnings for a user')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to check warnings for')
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages),
+    
+    new SlashCommandBuilder()
+        .setName('removewarn')
+        .setDescription('Remove a specific warning from a user')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to remove warning from')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('warning_id')
+                .setDescription('Warning ID to remove (get from /warnings)')
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages),
+    
+    new SlashCommandBuilder()
+        .setName('clearwarnings')
+        .setDescription('Clear all warnings for a user')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to clear warnings for')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for clearing warnings')
+                .setRequired(false))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.KickMembers),
     
     new SlashCommandBuilder()
         .setName('automod')
@@ -266,6 +334,139 @@ function scheduleUnban(guildId, userId, duration, unit, reason) {
     }, durationMs);
 }
 
+// Warning system functions
+function getUserWarnings(guildId, userId) {
+    const key = `${guildId}-${userId}`;
+    if (!userWarnings.has(key)) {
+        userWarnings.set(key, []);
+    }
+    return userWarnings.get(key);
+}
+
+function addWarning(guildId, userId, moderatorId, reason, severity = 'moderate') {
+    const warnings = getUserWarnings(guildId, userId);
+    const warning = {
+        id: `W${Date.now()}${Math.random().toString(36).substr(2, 4)}`,
+        reason,
+        severity,
+        moderatorId,
+        timestamp: Date.now(),
+        active: true
+    };
+    
+    warnings.push(warning);
+    return warning;
+}
+
+function removeWarning(guildId, userId, warningId) {
+    const warnings = getUserWarnings(guildId, userId);
+    const index = warnings.findIndex(w => w.id === warningId && w.active);
+    
+    if (index !== -1) {
+        warnings[index].active = false;
+        warnings[index].removedAt = Date.now();
+        return true;
+    }
+    return false;
+}
+
+function getActiveWarnings(guildId, userId) {
+    const warnings = getUserWarnings(guildId, userId);
+    return warnings.filter(w => w.active);
+}
+
+function clearAllWarnings(guildId, userId, moderatorId, reason = 'No reason provided') {
+    const warnings = getUserWarnings(guildId, userId);
+    const activeCount = warnings.filter(w => w.active).length;
+    
+    warnings.forEach(warning => {
+        if (warning.active) {
+            warning.active = false;
+            warning.removedAt = Date.now();
+            warning.removedBy = moderatorId;
+            warning.removeReason = reason;
+        }
+    });
+    
+    return activeCount;
+}
+
+async function checkWarningEscalation(guild, user, config, newWarningCount) {
+    if (!config.warnings.enabled || !config.warnings.autoEscalation) return null;
+    
+    const thresholds = config.warnings.thresholds;
+    
+    if (newWarningCount >= thresholds.ban) {
+        try {
+            await guild.members.ban(user.id, { reason: `Auto-escalation: ${thresholds.ban} warnings reached` });
+            return { action: 'ban', threshold: thresholds.ban };
+        } catch (error) {
+            console.error('Failed to ban user for warning escalation:', error);
+        }
+    } else if (newWarningCount >= thresholds.kick) {
+        try {
+            const member = guild.members.cache.get(user.id);
+            if (member && member.kickable) {
+                await member.kick(`Auto-escalation: ${thresholds.kick} warnings reached`);
+                return { action: 'kick', threshold: thresholds.kick };
+            }
+        } catch (error) {
+            console.error('Failed to kick user for warning escalation:', error);
+        }
+    } else if (newWarningCount >= thresholds.timeout) {
+        try {
+            const member = guild.members.cache.get(user.id);
+            if (member) {
+                const timeoutDuration = config.warnings.timeoutDuration * 60 * 1000;
+                await member.timeout(timeoutDuration, `Auto-escalation: ${thresholds.timeout} warnings reached`);
+                return { action: 'timeout', threshold: thresholds.timeout, duration: config.warnings.timeoutDuration };
+            }
+        } catch (error) {
+            console.error('Failed to timeout user for warning escalation:', error);
+        }
+    }
+    
+    return null;
+}
+
+async function logWarningAction(guild, action, user, moderator, warning, escalation = null, config) {
+    if (!config.logChannel) return;
+    
+    const logChannel = guild.channels.cache.get(config.logChannel);
+    if (!logChannel) return;
+    
+    let title, description, color;
+    
+    if (action === 'warn') {
+        title = '⚠️ Warning Issued';
+        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Reason:** ${warning.reason}\n**Severity:** ${warning.severity}\n**Warning ID:** ${warning.id}`;
+        color = 0xf39c12;
+        
+        if (escalation) {
+            description += `\n\n🔄 **Auto-Escalation Triggered:**\n**Action:** ${escalation.action}\n**Threshold:** ${escalation.threshold} warnings`;
+            if (escalation.duration) {
+                description += `\n**Duration:** ${escalation.duration} minutes`;
+            }
+        }
+    } else if (action === 'remove') {
+        title = '🗑️ Warning Removed';
+        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Warning ID:** ${warning.id}`;
+        color = 0x27ae60;
+    } else if (action === 'clear') {
+        title = '🧹 Warnings Cleared';
+        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Warnings Cleared:** ${warning.count}`;
+        color = 0x3498db;
+    }
+    
+    const embed = createEmbed(title, description, color);
+    
+    try {
+        await logChannel.send({ embeds: [embed] });
+    } catch (error) {
+        console.log('Could not send to warning log channel:', error.message);
+    }
+}
+
 // Auto-moderation functions
 function hasBypassPermissions(member, config) {
     if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -281,7 +482,6 @@ function detectSpam(message, config) {
     if (!config.autoMod.enabled) return null;
     if (hasBypassPermissions(message.member, config)) return null;
     
-    // Check for excessive caps
     if (content.length > 10) {
         const capsCount = (content.match(/[A-Z]/g) || []).length;
         const capsPercentage = (capsCount / content.length) * 100;
@@ -295,7 +495,6 @@ function detectSpam(message, config) {
         }
     }
     
-    // Check for excessive mentions
     const totalMentions = message.mentions.users.size + message.mentions.roles.size;
     if (totalMentions > config.autoMod.maxMentions) {
         return {
@@ -305,7 +504,6 @@ function detectSpam(message, config) {
         };
     }
     
-    // Check for repeated characters
     const repeatedPattern = new RegExp(`(.)\\1{${config.autoMod.maxRepeatedChars},}`, 'g');
     if (repeatedPattern.test(content)) {
         return {
@@ -315,7 +513,6 @@ function detectSpam(message, config) {
         };
     }
     
-    // Check for message spam (rapid messages)
     const userId = author.id;
     const now = Date.now();
     
@@ -633,6 +830,176 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ embeds: [embed] });
         }
         
+        else if (commandName === 'warn') {
+            const targetUser = interaction.options.getUser('user');
+            const reason = interaction.options.getString('reason');
+            const severity = interaction.options.getString('severity') || 'moderate';
+            
+            const targetMember = interaction.guild.members.cache.get(targetUser.id);
+            if (targetMember && hasBypassPermissions(targetMember, getServerConfig(interaction.guild.id))) {
+                const embed = createEmbed(
+                    '❌ Cannot Warn',
+                    'You cannot warn administrators or users with bypass permissions.',
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            const warning = addWarning(
+                interaction.guild.id,
+                targetUser.id,
+                interaction.user.id,
+                reason,
+                severity
+            );
+            
+            const config = getServerConfig(interaction.guild.id);
+            const activeWarnings = getActiveWarnings(interaction.guild.id, targetUser.id);
+            const warningCount = activeWarnings.length;
+            
+            const escalation = await checkWarningEscalation(
+                interaction.guild,
+                targetUser,
+                config,
+                warningCount
+            );
+            
+            const severityEmojis = { minor: '🟡', moderate: '🟠', severe: '🔴' };
+            const severityColors = { minor: 0xffff00, moderate: 0xff8c00, severe: 0xff0000 };
+            
+            let description = `**User:** ${targetUser.tag} (${targetUser.id})\n**Reason:** ${reason}\n**Severity:** ${severityEmojis[severity]} ${severity}\n**Warning ID:** ${warning.id}\n**Total Warnings:** ${warningCount}`;
+            
+            if (escalation) {
+                description += `\n\n🔄 **Auto-Escalation Triggered:**\n**Action:** ${escalation.action.toUpperCase()}\n**Threshold:** ${escalation.threshold} warnings reached`;
+                if (escalation.duration) {
+                    description += `\n**Timeout Duration:** ${escalation.duration} minutes`;
+                }
+            }
+            
+            const embed = createEmbed(
+                '⚠️ Warning Issued',
+                description,
+                severityColors[severity]
+            );
+            
+            await interaction.reply({ embeds: [embed] });
+            
+            try {
+                const dmEmbed = createEmbed(
+                    `⚠️ Warning Received - ${interaction.guild.name}`,
+                    `You have received a **${severity}** warning.\n\n**Reason:** ${reason}\n**Total Warnings:** ${warningCount}\n\nPlease review the server rules to avoid further warnings.`,
+                    severityColors[severity]
+                );
+                
+                await targetUser.send({ embeds: [dmEmbed] });
+            } catch (error) {
+                // User has DMs disabled
+            }
+            
+            await logWarningAction(interaction.guild, 'warn', targetUser, interaction.user, warning, escalation, config);
+        }
+        
+        else if (commandName === 'warnings') {
+            const targetUser = interaction.options.getUser('user');
+            const warnings = getUserWarnings(interaction.guild.id, targetUser.id);
+            const activeWarnings = warnings.filter(w => w.active);
+            
+            if (activeWarnings.length === 0) {
+                const embed = createEmbed(
+                    '✅ No Warnings',
+                    `${targetUser.tag} has no active warnings.`,
+                    0x00ff00
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            const config = getServerConfig(interaction.guild.id);
+            const thresholds = config.warnings.thresholds;
+            
+            let description = `**User:** ${targetUser.tag} (${targetUser.id})\n**Active Warnings:** ${activeWarnings.length}\n\n`;
+            
+            description += `**Escalation Thresholds:**\n`;
+            description += `• ${thresholds.timeout} warnings → Timeout\n`;
+            description += `• ${thresholds.kick} warnings → Kick\n`;
+            description += `• ${thresholds.ban} warnings → Ban\n\n`;
+            
+            description += `**Warning History:**\n`;
+            activeWarnings.slice(0, 5).forEach((warning, index) => {
+                const date = new Date(warning.timestamp).toLocaleDateString();
+                const severityEmoji = { minor: '🟡', moderate: '🟠', severe: '🔴' }[warning.severity];
+                description += `${index + 1}. ${severityEmoji} **${warning.reason}** (${date})\n   ID: \`${warning.id}\`\n`;
+            });
+            
+            if (activeWarnings.length > 5) {
+                description += `\n*... and ${activeWarnings.length - 5} more warnings*`;
+            }
+            
+            const embed = createEmbed(
+                '⚠️ User Warnings',
+                description,
+                activeWarnings.length >= thresholds.kick ? 0xff0000 : 
+                activeWarnings.length >= thresholds.timeout ? 0xff8c00 : 0xf39c12
+            );
+            
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+        
+        else if (commandName === 'removewarn') {
+            const targetUser = interaction.options.getUser('user');
+            const warningId = interaction.options.getString('warning_id');
+            
+            const removed = removeWarning(interaction.guild.id, targetUser.id, warningId);
+            
+            if (!removed) {
+                const embed = createEmbed(
+                    '❌ Warning Not Found',
+                    `Could not find an active warning with ID \`${warningId}\` for ${targetUser.tag}.\n\nUse \`/warnings @user\` to see available warning IDs.`,
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            const activeWarnings = getActiveWarnings(interaction.guild.id, targetUser.id);
+            
+            const embed = createEmbed(
+                '✅ Warning Removed',
+                `**User:** ${targetUser.tag} (${targetUser.id})\n**Warning ID:** \`${warningId}\`\n**Remaining Warnings:** ${activeWarnings.length}`,
+                0x00ff00
+            );
+            
+            await interaction.reply({ embeds: [embed] });
+            
+            const config = getServerConfig(interaction.guild.id);
+            await logWarningAction(interaction.guild, 'remove', targetUser, interaction.user, { id: warningId }, null, config);
+        }
+        
+        else if (commandName === 'clearwarnings') {
+            const targetUser = interaction.options.getUser('user');
+            const reason = interaction.options.getString('reason') || 'No reason provided';
+            
+            const clearedCount = clearAllWarnings(interaction.guild.id, targetUser.id, interaction.user.id, reason);
+            
+            if (clearedCount === 0) {
+                const embed = createEmbed(
+                    '✅ No Warnings to Clear',
+                    `${targetUser.tag} has no active warnings.`,
+                    0x00ff00
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            const embed = createEmbed(
+                '🧹 Warnings Cleared',
+                `**User:** ${targetUser.tag} (${targetUser.id})\n**Warnings Cleared:** ${clearedCount}\n**Reason:** ${reason}`,
+                0x3498db
+            );
+            
+            await interaction.reply({ embeds: [embed] });
+            
+            const config = getServerConfig(interaction.guild.id);
+            await logWarningAction(interaction.guild, 'clear', targetUser, interaction.user, { count: clearedCount }, null, config);
+        }
+        
         else if (commandName === 'automod') {
             const subcommand = interaction.options.getSubcommand();
             const config = getServerConfig(interaction.guild.id);
@@ -648,7 +1015,6 @@ client.on('interactionCreate', async (interaction) => {
                     enabled ? 0x00ff00 : 0xff0000
                 );
                 
-                // Only admin sees this message
                 await interaction.reply({ embeds: [embed], ephemeral: true });
             }
             
@@ -656,7 +1022,6 @@ client.on('interactionCreate', async (interaction) => {
                 try {
                     const autoMod = config.autoMod;
                     
-                    // Ensure all config values exist with defaults
                     const safeConfig = {
                         enabled: autoMod.enabled ?? true,
                         maxCapsPercentage: autoMod.maxCapsPercentage ?? 70,
@@ -683,7 +1048,6 @@ client.on('interactionCreate', async (interaction) => {
                         safeConfig.enabled ? 0x3498db : 0xf39c12
                     );
                     
-                    // Only admin sees this message
                     await interaction.reply({ embeds: [embed], ephemeral: true });
                     
                 } catch (error) {
@@ -709,7 +1073,6 @@ client.on('interactionCreate', async (interaction) => {
                     0x00ff00
                 );
                 
-                // Only admin sees this message
                 await interaction.reply({ embeds: [embed], ephemeral: true });
             }
             
@@ -723,7 +1086,6 @@ client.on('interactionCreate', async (interaction) => {
                     0x00ff00
                 );
                 
-                // Only admin sees this message
                 await interaction.reply({ embeds: [embed], ephemeral: true });
             }
         }
@@ -738,11 +1100,22 @@ client.on('interactionCreate', async (interaction) => {
                 '✅ `/unban <userid> [reason]` - Unban a user by ID\n' +
                 '🔇 `/timeout <user> <duration> [reason]` - Timeout a member\n' +
                 '🧹 `/clear <amount>` - Delete messages (1-100)\n\n' +
+                '**Warning System:**\n' +
+                '⚠️ `/warn <user> <reason> [severity]` - Issue a warning\n' +
+                '📋 `/warnings <user>` - View user warnings\n' +
+                '🗑️ `/removewarn <user> <id>` - Remove specific warning\n' +
+                '🧹 `/clearwarnings <user> [reason]` - Clear all warnings\n\n' +
                 '**Auto-Moderation Commands:**\n' +
                 '🛡️ `/automod toggle <enabled>` - Enable/disable auto-mod\n' +
                 '⚙️ `/automod settings` - View current auto-mod settings\n' +
                 '📝 `/automod caps <percentage>` - Set caps limit (1-100%)\n' +
                 '👥 `/automod mentions <count>` - Set mention limit (1-20)\n\n' +
+                '**Warning System Features:**\n' +
+                '• **Severity Levels** - Minor 🟡, Moderate 🟠, Severe 🔴\n' +
+                '• **Auto-Escalation** - 3 warnings → timeout, 5 → kick, 7 → ban\n' +
+                '• **User Notifications** - DM users when warned\n' +
+                '• **Warning Tracking** - Complete history with IDs\n' +
+                '• **Smart Management** - Remove specific warnings\n\n' +
                 '**Auto-Mod Features:**\n' +
                 '• **Caps Detection** - Removes messages with excessive capitals\n' +
                 '• **Mention Spam** - Prevents mass mention abuse\n' +
@@ -755,10 +1128,9 @@ client.on('interactionCreate', async (interaction) => {
                 '• `/ban @user Toxic behavior 2 hours` - 2-hour ban\n' +
                 '• `/ban @user Rule breaking 7 days` - 1-week ban\n\n' +
                 '**Time Units:** Minutes, Hours, Days\n\n' +
-                '*ModX - Built for modern Discord servers*',
+                '*ModX - Complete moderation solution for Discord*',
                 0x5865F2
             );
-            // Help can be visible to everyone or private - let's make it private to reduce clutter
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }
         
