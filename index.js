@@ -1,4 +1,4 @@
-// Discord Moderation Bot - Slash Commands Version
+// Discord Moderation Bot - Slash Commands Version with Flexible Temporary Bans
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, SlashCommandBuilder, REST, Routes } = require('discord.js');
 
@@ -12,6 +12,9 @@ const client = new Client({
         GatewayIntentBits.GuildModeration   // Moderation actions
     ]
 });
+
+// Simple storage for temporary bans (upgrade to database later)
+const tempBans = new Map();
 
 // Define all slash commands
 const commands = [
@@ -34,10 +37,10 @@ const commands = [
                 .setRequired(false))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.KickMembers),
     
-    // BAN COMMAND
+    // BAN COMMAND (now supports temporary bans with flexible time units)
     new SlashCommandBuilder()
         .setName('ban')
-        .setDescription('Ban a member from the server')
+        .setDescription('Ban a member from the server (permanently or temporarily)')
         .addUserOption(option =>
             option.setName('user')
                 .setDescription('The user to ban')
@@ -45,6 +48,35 @@ const commands = [
         .addStringOption(option =>
             option.setName('reason')
                 .setDescription('Reason for the ban')
+                .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('duration')
+                .setDescription('Ban duration (leave empty for permanent)')
+                .setRequired(false)
+                .setMinValue(1)
+                .setMaxValue(525600)) // Max ~1 year in minutes
+        .addStringOption(option =>
+            option.setName('unit')
+                .setDescription('Time unit for the duration')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Minutes', value: 'minutes' },
+                    { name: 'Hours', value: 'hours' },
+                    { name: 'Days', value: 'days' }
+                ))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.BanMembers),
+    
+    // UNBAN COMMAND
+    new SlashCommandBuilder()
+        .setName('unban')
+        .setDescription('Unban a user from the server')
+        .addStringOption(option =>
+            option.setName('userid')
+                .setDescription('The user ID to unban (right-click user → Copy User ID)')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for the unban')
                 .setRequired(false))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.BanMembers),
     
@@ -94,6 +126,98 @@ function createEmbed(title, description, color = 0x5865F2) {
         .setColor(color)
         .setTimestamp()
         .setFooter({ text: 'ModBot Pro' });
+}
+
+// Helper function to convert time to milliseconds
+function convertToMilliseconds(duration, unit) {
+    const multipliers = {
+        'minutes': 60 * 1000,      // 1 minute = 60,000ms
+        'hours': 60 * 60 * 1000,   // 1 hour = 3,600,000ms
+        'days': 24 * 60 * 60 * 1000 // 1 day = 86,400,000ms
+    };
+    
+    return duration * multipliers[unit];
+}
+
+// Helper function to format duration for display
+function formatDuration(duration, unit) {
+    if (unit === 'minutes') {
+        if (duration >= 1440) {
+            const days = Math.floor(duration / 1440);
+            const remainingHours = Math.floor((duration % 1440) / 60);
+            if (remainingHours > 0) {
+                return `${days} day(s) and ${remainingHours} hour(s)`;
+            }
+            return `${days} day(s)`;
+        } else if (duration >= 60) {
+            const hours = Math.floor(duration / 60);
+            const remainingMinutes = duration % 60;
+            if (remainingMinutes > 0) {
+                return `${hours} hour(s) and ${remainingMinutes} minute(s)`;
+            }
+            return `${hours} hour(s)`;
+        } else {
+            return `${duration} minute(s)`;
+        }
+    } else if (unit === 'hours') {
+        if (duration >= 24) {
+            const days = Math.floor(duration / 24);
+            const remainingHours = duration % 24;
+            if (remainingHours > 0) {
+                return `${days} day(s) and ${remainingHours} hour(s)`;
+            }
+            return `${days} day(s)`;
+        } else {
+            return `${duration} hour(s)`;
+        }
+    } else if (unit === 'days') {
+        return `${duration} day(s)`;
+    }
+    
+    return `${duration} ${unit}`;
+}
+
+// Function to validate duration limits
+function validateDuration(duration, unit) {
+    const limits = {
+        'minutes': 525600, // ~1 year in minutes
+        'hours': 8760,     // 1 year in hours  
+        'days': 365        // 1 year in days
+    };
+    
+    return duration <= limits[unit];
+}
+
+// Function to schedule automatic unban
+function scheduleUnban(guildId, userId, duration, unit, reason) {
+    const durationMs = convertToMilliseconds(duration, unit);
+    const unbanTime = Date.now() + durationMs;
+    
+    // Store temp ban info
+    tempBans.set(`${guildId}-${userId}`, {
+        unbanTime,
+        reason,
+        guildId,
+        userId,
+        duration,
+        unit
+    });
+    
+    // Set timeout for automatic unban
+    setTimeout(async () => {
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            if (guild) {
+                await guild.members.unban(userId, `Automatic unban: ${reason}`);
+                console.log(`✅ Auto-unbanned user ${userId} from ${guild.name}`);
+            }
+        } catch (error) {
+            console.error(`❌ Failed to auto-unban user ${userId}:`, error);
+        }
+        
+        // Remove from temp bans
+        tempBans.delete(`${guildId}-${userId}`);
+    }, durationMs);
 }
 
 // Register slash commands
@@ -178,20 +302,131 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ embeds: [embed] });
         }
         
-        // BAN COMMAND
+        // BAN COMMAND (now with flexible time units)
         else if (commandName === 'ban') {
             const targetUser = interaction.options.getUser('user');
             const reason = interaction.options.getString('reason') || 'No reason provided';
+            const duration = interaction.options.getInteger('duration');
+            const unit = interaction.options.getString('unit');
             
-            // Ban the user
-            await interaction.guild.members.ban(targetUser, { reason: reason });
+            // Validate duration and unit logic
+            if (duration && !unit) {
+                const embed = createEmbed(
+                    '❌ Missing Time Unit', 
+                    'Please specify a time unit when setting a duration!\n\n**Examples:**\n• `/ban @user reason 30 minutes`\n• `/ban @user reason 2 hours`\n• `/ban @user reason 7 days`', 
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
             
-            const embed = createEmbed(
-                '🔨 User Banned',
-                `**User:** ${targetUser.tag} (${targetUser.id})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user.tag}`,
-                0x00ff00
-            );
-            await interaction.reply({ embeds: [embed] });
+            if (!duration && unit) {
+                const embed = createEmbed(
+                    '❌ Missing Duration', 
+                    'Please specify a duration when using a time unit!\n\n**Examples:**\n• `/ban @user reason 30 minutes`\n• `/ban @user reason 2 hours`\n• `/ban @user reason 7 days`', 
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            // Validate duration limits
+            if (duration && unit && !validateDuration(duration, unit)) {
+                const limits = {
+                    'minutes': '525,600 minutes (~1 year)',
+                    'hours': '8,760 hours (1 year)',
+                    'days': '365 days (1 year)'
+                };
+                
+                const embed = createEmbed(
+                    '❌ Duration Too Long', 
+                    `Maximum duration for ${unit} is ${limits[unit]}.\n\nPlease choose a shorter duration.`, 
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            try {
+                // Ban the user
+                await interaction.guild.members.ban(targetUser, { reason: reason });
+                
+                let banType = 'Permanent';
+                let durationText = '';
+                
+                // If duration is specified, schedule automatic unban
+                if (duration && unit) {
+                    scheduleUnban(interaction.guild.id, targetUser.id, duration, unit, reason);
+                    banType = 'Temporary';
+                    durationText = `\n**Duration:** ${formatDuration(duration, unit)}`;
+                }
+                
+                const embed = createEmbed(
+                    `🔨 User ${banType}ly Banned`,
+                    `**User:** ${targetUser.tag} (${targetUser.id})\n**Reason:** ${reason}${durationText}\n**Moderator:** ${interaction.user.tag}`,
+                    0x00ff00
+                );
+                await interaction.reply({ embeds: [embed] });
+                
+            } catch (error) {
+                console.error('Ban error:', error);
+                let errorMessage = 'Something went wrong while banning the user!';
+                
+                if (error.code === 10013) {
+                    errorMessage = 'User not found or already banned!';
+                } else if (error.code === 50013) {
+                    errorMessage = 'I don\'t have permission to ban this user!';
+                }
+                
+                const embed = createEmbed('❌ Ban Failed', errorMessage, 0xff0000);
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+        }
+        
+        // UNBAN COMMAND
+        else if (commandName === 'unban') {
+            const userId = interaction.options.getString('userid');
+            const reason = interaction.options.getString('reason') || 'No reason provided';
+            
+            // Validate user ID format
+            if (!/^\d{17,19}$/.test(userId)) {
+                const embed = createEmbed(
+                    '❌ Invalid User ID', 
+                    'Please provide a valid Discord user ID (17-19 digits).\n\n**How to get User ID:**\n1. Enable Developer Mode in Discord\n2. Right-click the user → Copy User ID', 
+                    0xff0000
+                );
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            try {
+                // Try to unban the user
+                const unbannedUser = await interaction.guild.members.unban(userId, reason);
+                
+                // Remove from temp bans if it was a temporary ban
+                const tempBanKey = `${interaction.guild.id}-${userId}`;
+                if (tempBans.has(tempBanKey)) {
+                    tempBans.delete(tempBanKey);
+                }
+                
+                const embed = createEmbed(
+                    '✅ User Unbanned',
+                    `**User:** ${unbannedUser.tag} (${userId})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user.tag}`,
+                    0x00ff00
+                );
+                await interaction.reply({ embeds: [embed] });
+                
+            } catch (error) {
+                console.error('Unban error:', error);
+                let errorMessage = 'Something went wrong while unbanning the user!';
+                
+                if (error.code === 10026) {
+                    errorMessage = 'This user is not banned!';
+                } else if (error.code === 10013) {
+                    errorMessage = 'User not found! Make sure the User ID is correct.';
+                } else if (error.code === 50013) {
+                    errorMessage = 'I don\'t have permission to unban users!';
+                }
+                
+                const embed = createEmbed('❌ Unban Failed', errorMessage, 0xff0000);
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
         }
         
         // CLEAR COMMAND
@@ -254,13 +489,25 @@ client.on('interactionCreate', async (interaction) => {
                 '**Available Slash Commands:**\n\n' +
                 '🏓 `/ping` - Test if bot is working\n' +
                 '👢 `/kick <user> [reason]` - Kick a member\n' +
-                '🔨 `/ban <user> [reason]` - Ban a member\n' +
+                '🔨 `/ban <user> [reason] [duration] [unit]` - Ban a member\n' +
+                '✅ `/unban <userid> [reason]` - Unban a user by ID\n' +
                 '🔇 `/timeout <user> <duration> [reason]` - Timeout a member\n' +
                 '🧹 `/clear <amount>` - Delete messages (1-100)\n' +
                 '📚 `/help` - Show this message\n\n' +
+                '**Ban Examples:**\n' +
+                '• `/ban @user` - Permanent ban\n' +
+                '• `/ban @user Spamming 30 minutes` - 30-minute ban\n' +
+                '• `/ban @user Toxic behavior 2 hours` - 2-hour ban\n' +
+                '• `/ban @user Rule breaking 7 days` - 1-week ban\n' +
+                '• `/ban @user Multiple violations 30 days` - 1-month ban\n\n' +
+                '**Time Units Available:**\n' +
+                '• **Minutes** - For short punishments (1-525,600)\n' +
+                '• **Hours** - For medium punishments (1-8,760)\n' +
+                '• **Days** - For long punishments (1-365)\n\n' +
                 '**Features:**\n' +
-                '• Auto-moderation coming soon!\n' +
-                '• Professional logging\n' +
+                '• Flexible temporary ban system\n' +
+                '• Automatic unban scheduling\n' +
+                '• Professional error handling\n' +
                 '• Easy-to-use slash commands\n\n' +
                 '*Built for modern Discord servers*',
                 0x5865F2

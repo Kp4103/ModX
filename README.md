@@ -4,7 +4,6 @@
 
 ![ModX pfp](https://github.com/user-attachments/assets/ce145d8f-dc2d-4394-80cb-8a571d057a24)
 
-
 **A powerful, modern Discord moderation bot built with slash commands**
 
 [![Discord.js](https://img.shields.io/badge/discord.js-v14-blue.svg)](https://discord.js.org/)
@@ -20,22 +19,31 @@
 
 ### Core Moderation
 - **Kick Members** - Remove disruptive users from your server
-- **Ban Members** - Permanently ban rule breakers with optional reasons
+- **Advanced Ban System** - Permanent or temporary bans with flexible time units
+- **Unban Users** - Easy user ID-based unbanning with reason tracking
 - **Timeout Users** - Temporarily silence members (1 minute to 28 days)
 - **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages)
 
-### Modern Interface
-- **Slash Commands** - Modern Discord UI with auto-completion
+### Advanced Features
+- **Flexible Temporary Bans** - Choose between minutes, hours, or days
+- **Automatic Unban System** - Scheduled automatic unbans for temporary bans
+- **Smart Ban Management** - Manual unban with temp ban cancellation
 - **Rich Embeds** - Professional, color-coded responses
 - **Permission Integration** - Commands only show for authorized users
-- **Error Handling** - Graceful error management with user feedback
+- **Intelligent Validation** - Prevents invalid time combinations and user errors
+
+### Modern Interface
+- **Slash Commands** - Modern Discord UI with auto-completion and dropdowns
+- **Ephemeral Responses** - Private error messages and confirmations
+- **Input Validation** - Built-in Discord validation for user safety
+- **Error Handling** - Graceful error management with helpful feedback
 
 ### Coming Soon
 - 🛡️ **Auto-Moderation** - Automatic spam and toxicity detection
-- 📊 **Moderation Logs** - Comprehensive action logging
-- ⚠️ **Warning System** - Progressive punishment system
-- 🔧 **Web Dashboard** - Easy server configuration
-- 📈 **Analytics** - Detailed moderation statistics
+- 📊 **Moderation Logs** - Comprehensive action logging with channels
+- ⚠️ **Warning System** - Progressive punishment system with escalation
+- 🔧 **Web Dashboard** - Easy server configuration interface
+- 📈 **Analytics** - Detailed moderation statistics and trends
 
 ## 🚀 Quick Start
 
@@ -78,7 +86,8 @@
 | Command | Description | Permissions Required |
 |---------|-------------|---------------------|
 | `/kick <user> [reason]` | Kick a member from the server | Kick Members |
-| `/ban <user> [reason]` | Ban a member from the server | Ban Members |
+| `/ban <user> [reason] [duration] [unit]` | Ban a member (permanent or temporary) | Ban Members |
+| `/unban <userid> [reason]` | Unban a user by their Discord ID | Ban Members |
 | `/timeout <user> <duration> [reason]` | Timeout a member (1-40320 minutes) | Moderate Members |
 | `/clear <amount>` | Delete 1-100 messages at once | Manage Messages |
 
@@ -89,21 +98,41 @@
 | `/ping` | Check bot latency and status | None |
 | `/help` | Display all available commands | None |
 
-### Command Examples
+### Ban System Examples
 
 ```bash
-# Kick a spammer
-/kick @BadUser Spamming in general chat
+# Permanent bans
+/ban @spammer Excessive advertising
+/ban @toxic_user Harassment and toxic behavior
 
-# Ban with reason
-/ban @Troublemaker Repeated rule violations
+# Temporary bans with flexible time units
+/ban @rule_breaker Inappropriate content 30 minutes
+/ban @disruptive_user Disrupting events 2 hours
+/ban @repeat_offender Multiple violations 7 days
+/ban @serious_violation Doxxing attempt 30 days
 
-# 10-minute timeout
-/timeout @NoobUser 10 Calm down period
+# Unban users
+/unban 123456789012345678 Appeal approved
+/unban 987654321098765432 Misunderstanding resolved
 
-# Clean up 25 messages
-/clear 25
+# Other moderation
+/kick @troublemaker Warning ignored
+/timeout @loud_user Excessive caps 10
+/clear 50
 ```
+
+### Time Unit Flexibility
+
+| Unit | Use Case | Examples |
+|------|----------|----------|
+| **Minutes** | Quick cooldowns, immediate responses | 5, 15, 30, 60 minutes |
+| **Hours** | Standard punishments, overnight bans | 2, 6, 12, 24 hours |
+| **Days** | Serious violations, extended breaks | 1, 3, 7, 14, 30 days |
+
+**Smart Duration Display:**
+- `90 minutes` → Shows as "1 hour(s) and 30 minute(s)"
+- `25 hours` → Shows as "1 day(s) and 1 hour(s)"
+- `1500 minutes` → Shows as "1 day(s) and 1 hour(s)"
 
 ## ⚙️ Configuration
 
@@ -160,31 +189,7 @@ ModX/
 └── README.md            # This file
 ```
 
-### Adding New Commands
-
-1. Define the command in the `commands` array:
-   ```javascript
-   new SlashCommandBuilder()
-       .setName('yourcommand')
-       .setDescription('Command description')
-       .addStringOption(option =>
-           option.setName('parameter')
-               .setDescription('Parameter description')
-               .setRequired(true))
-   ```
-
-2. Handle the command in `interactionCreate`:
-   ```javascript
-   else if (commandName === 'yourcommand') {
-       // Your command logic here
-   }
-   ```
-
-3. Re-deploy commands:
-   ```bash
-   node deploy-commands.js
-   ```
-
+``
 ### Testing Commands
 
 For faster development, use guild-specific commands:
@@ -225,6 +230,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Common Issues
 
+**General Issues:**
+
 **Bot not responding?**
 - Verify bot token in `.env`
 - Check bot has necessary permissions
@@ -244,17 +251,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🌟 Roadmap
 
 ### Version 2.0 (Coming Soon)
-- [ ] Auto-moderation system
-- [ ] Warning system with escalation
-- [ ] Moderation logs
-- [ ] Custom word filters
-- [ ] Raid protection
+- [ ] Auto-moderation system with spam detection
+- [ ] Warning system with escalation and history
+- [ ] Comprehensive moderation logs with channel setup
+- [ ] Custom word filters and automod rules
+- [ ] Raid protection and mass action prevention
+- [ ] Database integration for persistent data
 
 ### Version 3.0 (Future)
-- [ ] Web dashboard
-- [ ] Advanced analytics
-- [ ] Multi-language support
-- [ ] Plugin system
+- [ ] Web dashboard for easy configuration
+- [ ] Advanced analytics and moderation insights
+- [ ] Multi-language support and localization
+- [ ] Plugin system for custom extensions
+- [ ] Appeal system integration
+- [ ] Advanced role management tools
 
 ---
 
