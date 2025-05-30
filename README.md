@@ -2,14 +2,14 @@
 
 <div align="center">
 
-![ModX pfp](https://github.com/user-attachments/assets/ce145d8f-dc2d-4394-80cb-8a571d057a24)
+![ModX Banner](https://via.placeholder.com/800x200/5865F2/FFFFFF?text=ModX+Discord+Bot)
 
 **A powerful, modern Discord moderation bot built with slash commands**
 
 [![Discord.js](https://img.shields.io/badge/discord.js-v14-blue.svg)](https://discord.js.org/)
 [![Node.js](https://img.shields.io/badge/node.js-v18+-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-production--ready-success.svg)]()
+[![Status](https://img.shields.io/badge/status-active-success.svg)]()
 
 [Features](#features) • [Installation](#installation) • [Commands](#commands) • [Configuration](#configuration) • [Contributing](#contributing)
 
@@ -18,68 +18,66 @@
 ## 🌟 Features
 
 ### Core Moderation
-- **Kick Members** - Remove disruptive users from your server with reason tracking
-- **Advanced Ban System** - Permanent or temporary bans with flexible time units (minutes, hours, days)
-- **Automatic Unban System** - Scheduled automatic unbans with proper cleanup and cancellation support
-- **Timeout Users** - Temporarily silence members (1 minute to 28 days) with smart duration formatting
-- **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages) with built-in safety limits
+- **Kick Members** - Remove disruptive users from your server
+- **Advanced Ban System** - Permanent or temporary bans with flexible time units
+- **Unban Users** - Easy user ID-based unbanning with reason tracking
+- **Timeout Users** - Temporarily silence members (1 minute to 28 days)
+- **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages)
 
 ### Warning System
-- **Progressive Discipline** - Issue warnings with automatic escalation and smart thresholds
-- **Severity Levels** - Minor, Moderate, and Severe warning classifications with color coding
-- **Auto-Escalation Engine** - 3 warnings → timeout (60min), 5 → kick, 7 → ban (fully configurable)
-- **Advanced Warning Management** - View, remove, or clear warnings with complete audit trail
-- **User Notifications** - Automatic DM notifications with clear violation explanations
-- **Unique Warning IDs** - Easy tracking and management with alphanumeric identifiers
-- **Smart Bypass System** - Administrators and configured roles skip auto-escalation
+- **Progressive Discipline** - Issue warnings with automatic escalation
+- **Severity Levels** - Minor, Moderate, and Severe warning classifications
+- **Auto-Escalation** - 3 warnings → timeout, 5 → kick, 7 → ban
+- **Warning Management** - View, remove, or clear warnings with full audit trail
+- **User Notifications** - DM users when warned with clear explanations
+- **Unique Warning IDs** - Easy tracking and management of individual warnings
 
 ### Auto-Moderation System
-- **Real-time Spam Detection** - Multi-layer detection catches various spam patterns instantly
-- **Dynamic Caps Filter** - Configurable excessive CAPITAL LETTERS detection (1-100% threshold)
-- **Mention Spam Protection** - Prevents mass @mention abuse with customizable limits (1-20 mentions)
-- **Character Spam Detection** - Stops repeated character spam with regex pattern matching
-- **Intelligent Rate Limiting** - Prevents rapid message flooding with time window analysis
-- **Permission-Based Bypass** - Admins and trusted roles automatically skip auto-mod rules
-- **Configurable Thresholds** - Customize all detection limits for your server's specific needs
-- **Memory Efficient Tracking** - Smart cleanup prevents memory leaks in long-running instances
+- **Real-time Spam Detection** - Automatically catches and removes spam
+- **Caps Filter** - Removes messages with excessive CAPITAL LETTERS
+- **Mention Spam Protection** - Prevents mass @mention abuse
+- **Character Spam Detection** - Stops repeated character spam (aaaaa)
+- **Rate Limiting** - Prevents rapid message flooding
+- **Smart Bypass System** - Admins and trusted roles skip auto-mod rules
+- **Configurable Thresholds** - Customize limits for your server's needs
 
 ### Comprehensive Logging System
-- **Multi-Channel Logging** - Separate dedicated channels for different log types
-- **Moderation Action Logs** - Complete audit trail of kicks, bans, timeouts, and warnings
-- **Auto-Moderation Logs** - Real-time spam detection and removal tracking with detection details
-- **Member Event Tracking** - Join/leave events with account age and member count information
-- **Rich Embed Formatting** - Professional logs with user avatars, timestamps, and case IDs
-- **Configurable Categories** - Enable/disable specific log types (kicks, bans, warnings, automod, etc.)
-- **Fallback Channel System** - Smart channel selection when primary channels unavailable
-- **Test Log Functionality** - Built-in log testing to verify configuration
+- **Multi-Channel Logging** - Separate channels for different log types
+- **Complete Audit Trail** - Track every moderation action with timestamps
+- **Rich Log Embeds** - Professional formatting with user avatars and case IDs
+- **Member Event Tracking** - Monitor joins, leaves, and account ages
+- **Auto-Mod Logging** - Detailed spam detection results with context
+- **Granular Control** - Enable/disable specific log categories
+- **Real-time Notifications** - Instant logging of all moderation events
 
 ### Advanced Features
-- **Flexible Temporary Bans** - Support for minutes, hours, and days with intelligent duration parsing
-- **Smart Duration Display** - Human-readable format conversion (90 minutes → "1 hour(s) and 30 minute(s)")
-- **Automatic Cleanup Systems** - Memory management and scheduled task cleanup for production stability
-- **Progressive Warning System** - Automated escalation from warnings to timeouts/kicks/bans
-- **Comprehensive Audit Trail** - Complete history of all moderation actions with case tracking
-- **Ephemeral Admin Messages** - Private configuration messages visible only to command users
-- **Rich Embeds** - Professional, color-coded responses with clear formatting and status indicators
-- **Permission Integration** - Commands automatically respect Discord's permission system
-- **Intelligent Validation** - Prevents invalid time combinations and configuration errors
-- **Robust Error Handling** - Graceful error management with helpful user feedback and fallback responses
+- **Flexible Temporary Bans** - Choose between minutes, hours, or days
+- **Automatic Unban System** - Scheduled automatic unbans for temporary bans
+- **Smart Ban Management** - Manual unban with temp ban cancellation
+- **Progressive Warning System** - Automated escalation from warnings to punishments
+- **Multi-Channel Logging** - Separate log channels for different event types
+- **Comprehensive Audit Trail** - Complete history of all moderation actions with case IDs
+- **Member Event Tracking** - Monitor server joins, leaves, and account analytics
+- **Ephemeral Admin Messages** - Private configuration messages for admins
+- **Rich Embeds** - Professional, color-coded responses with user avatars
+- **Permission Integration** - Commands only show for authorized users
+- **Intelligent Validation** - Prevents invalid time combinations and user errors
+- **Robust Error Handling** - Graceful error management with debugging support
 
 ### Modern Interface
-- **Native Slash Commands** - Modern Discord UI with auto-completion and parameter validation
-- **Smart Input Validation** - Built-in Discord validation with helpful error messages
-- **Ephemeral Responses** - Private error messages and confirmations for clean chat experience
-- **Real-Time Configuration** - No bot restart required for setting changes
-- **Multi-Server Support** - Individual configurations stored per Discord server
+- **Slash Commands** - Modern Discord UI with auto-completion and dropdowns
+- **Ephemeral Responses** - Private error messages and confirmations
+- **Input Validation** - Built-in Discord validation for user safety
+- **Error Handling** - Graceful error management with helpful feedback
 
-### Production Ready Features
-- 📊 **Comprehensive Logging** - Multi-channel logging system with configurable categories
-- 🛡️ **Advanced Auto-Moderation** - Real-time spam detection with multiple pattern types
-- ⚠️ **Smart Warning System** - Progressive discipline with auto-escalation
-- 🔧 **Flexible Configuration** - Per-server settings with intelligent defaults
-- 🚀 **Performance Optimized** - Memory efficient with proper cleanup systems
-- 🔄 **Automatic Systems** - Scheduled unbans and warning escalation
-- 📈 **Scalable Architecture** - Supports multiple servers simultaneously
+### Coming Soon
+- 🔗 **Link Filtering** - Control and whitelist external links
+- 📊 **Moderation Logs** - Comprehensive action logging with channels  
+- 🛡️ **Raid Protection** - Detect and prevent server raids
+- 🚫 **Custom Word Filters** - Block specific words and phrases
+- 🔧 **Web Dashboard** - Easy server configuration interface
+- 📈 **Analytics** - Detailed moderation statistics and trends
+- 🔄 **Appeal System** - Allow users to appeal warnings and bans
 
 ## 🚀 Quick Start
 
@@ -136,6 +134,15 @@
 | `/removewarn <user> <warning_id>` | Remove specific warning | Manage Messages |
 | `/clearwarnings <user> [reason]` | Clear all warnings for user | Kick Members |
 
+### Logging System Commands
+
+| Command | Description | Permissions Required |
+|---------|-------------|---------------------|
+| `/logs set <type> <channel>` | Set logging channel for specific type | Administrator |
+| `/logs settings` | View current logging configuration | Administrator |
+| `/logs toggle <category> <enabled>` | Enable/disable log categories | Administrator |
+| `/logs test <type>` | Send test log messages | Administrator |
+
 ### Auto-Moderation Commands
 
 | Command | Description | Permissions Required |
@@ -144,15 +151,6 @@
 | `/automod settings` | View current auto-mod configuration | Administrator |
 | `/automod caps <percentage>` | Set caps limit (1-100%) | Administrator |
 | `/automod mentions <count>` | Set mention limit (1-20) | Administrator |
-
-### Logging System Commands
-
-| Command | Description | Permissions Required |
-|---------|-------------|---------------------|
-| `/logs set <type> <channel>` | Set logging channels for different types | Administrator |
-| `/logs settings` | View current logging configuration | Administrator |
-| `/logs toggle <category> <enabled>` | Enable/disable specific log categories | Administrator |
-| `/logs test <type>` | Send test log message to verify setup | Administrator |
 
 ### Utility Commands
 
@@ -256,25 +254,6 @@ ModX automatically escalates punishments based on warning count:
 - `25 hours` → Shows as "1 day(s) and 1 hour(s)"
 - `1500 minutes` → Shows as "1 day(s) and 1 hour(s)"
 
-### Logging System Setup
-
-```bash
-# Set up different log channels
-/logs set moderation #mod-actions
-/logs set automod #auto-mod-logs
-/logs set member #member-events
-/logs set message #message-logs
-
-# Configure what gets logged
-/logs toggle kicks true
-/logs toggle automod true
-/logs toggle memberJoin false
-
-# Test your configuration
-/logs test moderation
-/logs settings
-```
-
 ## ⚙️ Configuration
 
 ### Environment Variables
@@ -301,9 +280,9 @@ Your bot needs these permissions in Discord:
 - Read Message History
 
 **Moderation Permissions:**
-- Manage Messages (for `/clear` and auto-moderation)
+- Manage Messages (for `/clear`)
 - Kick Members (for `/kick`)
-- Ban Members (for `/ban` and `/unban`)
+- Ban Members (for `/ban`)
 - Moderate Members (for `/timeout`)
 
 ### Invite Link Generator
@@ -322,38 +301,27 @@ Replace `YOUR_BOT_CLIENT_ID` with your bot's client ID from the Discord Develope
 
 ```
 ModX/
-├── index.js              # Main bot file with all functionality
+├── index.js              # Main bot file
 ├── package.json          # Dependencies and scripts
 ├── .env.example         # Environment template
 ├── .env                 # Your environment (don't commit!)
 └── README.md            # This file
 ```
 
-### Key Architecture Components
+### Testing Commands
 
-**Configuration Management:**
-- Per-server configuration with intelligent defaults
-- Real-time configuration updates without restart
-- Memory-efficient storage using Maps
+For faster development, use guild-specific commands:
 
-**Moderation Systems:**
-- Comprehensive warning system with auto-escalation
-- Flexible temporary ban system with automatic cleanup
-- Multi-pattern auto-moderation with configurable thresholds
-
-**Logging Infrastructure:**
-- Multi-channel logging with category-based routing
-- Rich embed formatting with professional appearance
-- Fallback systems for reliable log delivery
+1. Get your server ID (Right-click server → Copy Server ID)
+2. Update `GUILD_ID` in `deploy-commands.js`
+3. Run `node deploy-commands.js` for instant updates
 
 ## 📊 Performance
 
-- **Memory Usage**: ~50MB average with smart cleanup systems
+- **Memory Usage**: ~50MB average
 - **CPU Usage**: <1% during normal operation
 - **Response Time**: <100ms for most commands
-- **Uptime**: 99.9% with proper hosting and error handling
-- **Concurrent Servers**: Efficiently supports multiple Discord servers
-- **Auto-Cleanup**: Prevents memory leaks with scheduled cleanup tasks
+- **Uptime**: 99.9% with proper hosting
 
 ## 🤝 Contributing
 
@@ -367,11 +335,10 @@ Contributions are welcome! Here's how you can help:
 
 ### Development Guidelines
 
-- Follow existing code style and patterns
-- Add comprehensive comments for complex logic
-- Test all commands thoroughly in development environment
+- Follow existing code style
+- Add comments for complex logic
+- Test commands thoroughly
 - Update documentation for new features
-- Ensure error handling for all edge cases
 
 ## 📝 License
 
@@ -381,37 +348,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Common Issues
 
+**General Issues:**
+
 **Bot not responding?**
-- Verify bot token in `.env` file
-- Check bot has necessary permissions in Discord
-- Ensure bot is online and properly invited
-- Look for errors in console output
+- Verify bot token in `.env`
+- Check bot has necessary permissions
+- Look for errors in console
 
 **Permission errors?**
-- Ensure bot role is above target user roles in hierarchy
-- Verify bot has required moderation permissions
-- Check Discord's role hierarchy configuration
-- Confirm bot has proper channel access
-
-**Commands not showing up?**
-- Wait up to 1 hour for Discord to sync slash commands
-- Verify bot has `applications.commands` scope
-- Check user has required permissions to see commands
-- Try commands in DMs to test bot functionality
-
-### Auto-Moderation Issues
-
-**Auto-mod not working?**
-- Check if auto-moderation is enabled: `/automod settings`
-- Verify user doesn't have bypass permissions
-- Confirm thresholds are properly configured
-- Check if logging channels are set up for debugging
-
-**Logging not working?**
-- Verify channels are properly configured: `/logs settings`
-- Check if specific categories are enabled
-- Test with `/logs test` commands
-- Ensure bot has send message permissions in log channels
+- Ensure bot role is above target roles
+- Verify bot has moderation permissions
+- Check Discord's role hierarchy
 
 ### Getting Help
 
@@ -421,22 +368,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🌟 Roadmap
 
-### Version 2.0 (In Development)
-- [ ] Database integration for persistent data storage (PostgreSQL/MongoDB)
-- [ ] Custom word filters and phrase detection system
-- [ ] Advanced raid protection with mass action detection
-- [ ] Role-based auto-mod bypass system with granular permissions
-- [ ] Warning expiration system with configurable timeouts
-- [ ] Message edit and delete logging with content preservation
+### Version 2.0 (Coming Soon)
+- [ ] Link filtering and whitelist system
+- [ ] Comprehensive moderation logs with channel setup
+- [ ] Custom word filters and phrase detection
+- [ ] Raid protection and mass action prevention
+- [ ] Database integration for persistent data storage
+- [ ] Role-based auto-mod bypass system
+- [ ] Enhanced warning system with expiration dates
 
 ### Version 3.0 (Future)
-- [ ] Web dashboard for easy server configuration and analytics
-- [ ] Advanced moderation analytics and insight reports
-- [ ] Multi-language support and localization system
-- [ ] Plugin system for custom extensions and integrations
+- [ ] Web dashboard for easy configuration
+- [ ] Advanced analytics and moderation insights
+- [ ] Multi-language support and localization
+- [ ] Plugin system for custom extensions
 - [ ] Appeal system integration with ticket management
 - [ ] Advanced role management and permission tools
-- [ ] Integration with other popular Discord bots and services
+- [ ] Integration with other Discord bots and services
 
 ---
 
