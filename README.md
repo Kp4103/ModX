@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![ModX Banner](https://via.placeholder.com/800x200/5865F2/FFFFFF?text=ModX+Discord+Bot)
+![ModX pfp](https://github.com/user-attachments/assets/ce145d8f-dc2d-4394-80cb-8a571d057a24)
 
-**A powerful, modern Discord moderation bot built with slash commands**
+**A powerful, modern Discord moderation bot with interactive configuration interfaces**
 
 [![Discord.js](https://img.shields.io/badge/discord.js-v14-blue.svg)](https://discord.js.org/)
 [![Node.js](https://img.shields.io/badge/node.js-v18+-green.svg)](https://nodejs.org/)
@@ -24,6 +24,13 @@
 - **Timeout Users** - Temporarily silence members (1 minute to 28 days)
 - **Bulk Message Deletion** - Clean up spam with bulk delete (1-100 messages)
 
+### Interactive Configuration System
+- **🖱️ Button Controls** - Toggle settings with one-click buttons
+- **📋 Dropdown Menus** - Easy option selection with visual feedback
+- **📝 Modal Forms** - Clean text input forms for precise configuration
+- **🔄 Real-time Updates** - See changes instantly in the interface
+- **🎯 Guided Setup** - Step-by-step configuration for all features
+
 ### Warning System
 - **Progressive Discipline** - Issue warnings with automatic escalation
 - **Severity Levels** - Minor, Moderate, and Severe warning classifications
@@ -40,6 +47,14 @@
 - **Rate Limiting** - Prevents rapid message flooding
 - **Smart Bypass System** - Admins and trusted roles skip auto-mod rules
 - **Configurable Thresholds** - Customize limits for your server's needs
+
+### Advanced Link Filtering
+- **🔗 Domain Whitelist/Blacklist** - Control allowed and blocked domains
+- **🛡️ Phishing Protection** - Detects Discord phishing and suspicious domains
+- **⚡ Link Shortener Blocking** - Prevents malicious shortened URLs
+- **🎚️ Strictness Levels** - Low, Medium, High filtering modes
+- **🌐 TLD Analysis** - Blocks suspicious top-level domains
+- **🔍 Real-time Scanning** - Instant link analysis and blocking
 
 ### Comprehensive Logging System
 - **Multi-Channel Logging** - Separate channels for different log types
@@ -66,17 +81,10 @@
 
 ### Modern Interface
 - **Slash Commands** - Modern Discord UI with auto-completion and dropdowns
+- **Interactive Components** - Buttons, select menus, and modals for easy configuration
 - **Ephemeral Responses** - Private error messages and confirmations
 - **Input Validation** - Built-in Discord validation for user safety
 - **Error Handling** - Graceful error management with helpful feedback
-
-### Coming Soon
-- 🔗 **Link Filtering** - Control and whitelist external links
-- 🛡️ **Raid Protection** - Detect and prevent server raids
-- 🚫 **Custom Word Filters** - Block specific words and phrases
-- 🔧 **Web Dashboard** - Easy server configuration interface
-- 📈 **Analytics** - Detailed moderation statistics and trends
-- 🔄 **Appeal System** - Allow users to appeal warnings and bans
 
 ## 🚀 Quick Start
 
@@ -114,6 +122,15 @@
 
 ## 📋 Commands
 
+### Interactive Configuration Commands
+
+| Command | Description | Permissions Required |
+|---------|-------------|---------------------|
+| `/config` | 🛠️ Main interactive configuration panel | Administrator |
+| `/automod` | 🛡️ Auto-moderation configuration interface | Administrator |
+| `/logs` | 📊 Logging system configuration interface | Administrator |
+| `/linkfilter` | 🔗 Link filtering management interface | Administrator |
+
 ### Moderation Commands
 
 | Command | Description | Permissions Required |
@@ -133,30 +150,28 @@
 | `/removewarn <user> <warning_id>` | Remove specific warning | Manage Messages |
 | `/clearwarnings <user> [reason]` | Clear all warnings for user | Kick Members |
 
-### Logging System Commands
-
-| Command | Description | Permissions Required |
-|---------|-------------|---------------------|
-| `/logs set <type> <channel>` | Set logging channel for specific type | Administrator |
-| `/logs settings` | View current logging configuration | Administrator |
-| `/logs toggle <category> <enabled>` | Enable/disable log categories | Administrator |
-| `/logs test <type>` | Send test log messages | Administrator |
-
-### Auto-Moderation Commands
-
-| Command | Description | Permissions Required |
-|---------|-------------|---------------------|
-| `/automod toggle <enabled>` | Enable/disable auto-moderation | Administrator |
-| `/automod settings` | View current auto-mod configuration | Administrator |
-| `/automod caps <percentage>` | Set caps limit (1-100%) | Administrator |
-| `/automod mentions <count>` | Set mention limit (1-20) | Administrator |
-
 ### Utility Commands
 
 | Command | Description | Permissions Required |
 |---------|-------------|---------------------|
 | `/ping` | Check bot latency and status | None |
 | `/help` | Display all available commands | None |
+
+### Interactive Configuration Examples
+
+```bash
+# Open main configuration panel with buttons and dropdowns
+/config
+
+# Configure auto-moderation with interactive interface
+/automod
+
+# Set up logging channels and categories
+/logs
+
+# Manage domain whitelist/blacklist
+/linkfilter
+```
 
 ### Ban System Examples
 
@@ -221,37 +236,28 @@ ModX automatically escalates punishments based on warning count:
 - Complete audit trail of all escalation actions
 - Bypass protection for administrators
 
-### Auto-Moderation Setup
-
-```bash
-# Enable auto-moderation
-/automod toggle true
-
-# View current settings
-/automod settings
-
-# Configure caps filter (messages with >80% caps will be removed)
-/automod caps 80
-
-# Set mention limit (max 3 mentions per message)
-/automod mentions 3
-
-# Disable auto-moderation if needed
-/automod toggle false
-```
-
-### Auto-Mod Features in Action
+### Auto-Moderation Features
 
 **What Gets Automatically Removed:**
 - `"THIS IS ALL CAPS SPAM!!!"` (excessive capitals)
 - `"@everyone @here @user1 @user2 @user3 @user4"` (too many mentions)
 - `"hahahahahahahaha"` (repeated character spam)
 - Multiple rapid messages from same user (rate limiting)
+- Malicious links and phishing attempts
 
 **Smart Duration Display:**
 - `90 minutes` → Shows as "1 hour(s) and 30 minute(s)"
 - `25 hours` → Shows as "1 day(s) and 1 hour(s)"
 - `1500 minutes` → Shows as "1 day(s) and 1 hour(s)"
+
+### Link Filtering System
+
+**Protection Features:**
+- **Discord Phishing Detection** - Blocks fake Discord sites
+- **Suspicious Domain Analysis** - Detects character substitution and suspicious TLDs
+- **Link Shortener Blocking** - Prevents bit.ly, tinyurl.com, etc.
+- **Whitelist/Blacklist Management** - Custom domain control
+- **Strictness Levels** - Low (basic threats) to High (whitelist only)
 
 ## ⚙️ Configuration
 
@@ -300,7 +306,7 @@ Replace `YOUR_BOT_CLIENT_ID` with your bot's client ID from the Discord Develope
 
 ```
 ModX/
-├── index.js              # Main bot file
+├── index.js              # Main bot file with all functionality
 ├── package.json          # Dependencies and scripts
 ├── .env.example         # Environment template
 ├── .env                 # Your environment (don't commit!)
@@ -339,8 +345,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Common Issues
 
-**General Issues:**
-
 **Bot not responding?**
 - Verify bot token in `.env`
 - Check bot has necessary permissions
@@ -351,6 +355,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Verify bot has moderation permissions
 - Check Discord's role hierarchy
 
+**Interactive components not working?**
+- Ensure bot has "Use Slash Commands" permission
+- Check that commands are properly registered
+- Verify no component width errors in console
+
 ### Getting Help
 
 - 📖 [Discord.js Guide](https://discordjs.guide/)
@@ -359,23 +368,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🌟 Roadmap
 
-### Version 2.0 (Coming Soon)
-- [ ] Link filtering and whitelist system
-- [ ] Comprehensive moderation logs with channel setup
-- [ ] Custom word filters and phrase detection
-- [ ] Raid protection and mass action prevention
-- [ ] Database integration for persistent data storage
-- [ ] Role-based auto-mod bypass system
-- [ ] Enhanced warning system with expiration dates
+### Version 2.0 (Current - ✅ Complete)
+- [x] Interactive configuration interfaces with buttons and dropdowns
+- [x] Advanced link filtering with phishing protection
+- [x] Comprehensive moderation logs with multi-channel setup
+- [x] Progressive warning system with auto-escalation
+- [x] Smart auto-moderation with configurable thresholds
+- [x] Real-time spam detection and prevention
+- [x] Role-based auto-mod bypass system
+- [x] Temporary ban system with automatic scheduling
 
 ### Version 3.0 (Future)
-- [ ] Web dashboard for easy configuration
+- [ ] Web dashboard for remote configuration
 - [ ] Advanced analytics and moderation insights
 - [ ] Multi-language support and localization
 - [ ] Plugin system for custom extensions
 - [ ] Appeal system integration with ticket management
 - [ ] Advanced role management and permission tools
 - [ ] Integration with other Discord bots and services
+- [ ] Custom word filters with regex support
 
 ---
 
