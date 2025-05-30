@@ -1,4 +1,4 @@
-// Discord Moderation Bot - With Auto-Moderation and Warning System
+// Discord Moderation Bot - Complete with Logging System
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, SlashCommandBuilder, REST, Routes } = require('discord.js');
 
@@ -41,6 +41,27 @@ function getDefaultConfig() {
             },
             timeoutDuration: 60,
             warningExpiry: 30
+        },
+        logging: {
+            enabled: true,
+            channels: {
+                moderation: null,
+                automod: null,
+                member: null,
+                message: null
+            },
+            categories: {
+                kicks: true,
+                bans: true,
+                unbans: true,
+                timeouts: true,
+                warnings: true,
+                automod: true,
+                memberJoin: true,
+                memberLeave: true,
+                messageDelete: false,
+                messageEdit: false
+            }
         },
         logChannel: null,
         bypassRoles: []
@@ -202,6 +223,70 @@ const commands = [
         .setDefaultMemberPermissions(PermissionsBitField.Flags.KickMembers),
     
     new SlashCommandBuilder()
+        .setName('logs')
+        .setDescription('Configure moderation logging')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('set')
+                .setDescription('Set a logging channel')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Type of logs for this channel')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Moderation (kicks, bans, warnings)', value: 'moderation' },
+                            { name: 'Auto-Moderation (spam detection)', value: 'automod' },
+                            { name: 'Member Events (join/leave)', value: 'member' },
+                            { name: 'Message Events (delete/edit)', value: 'message' }
+                        ))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel to send logs to')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('settings')
+                .setDescription('View current logging settings'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('toggle')
+                .setDescription('Enable or disable specific log categories')
+                .addStringOption(option =>
+                    option.setName('category')
+                        .setDescription('Log category to toggle')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Kicks', value: 'kicks' },
+                            { name: 'Bans', value: 'bans' },
+                            { name: 'Unbans', value: 'unbans' },
+                            { name: 'Timeouts', value: 'timeouts' },
+                            { name: 'Warnings', value: 'warnings' },
+                            { name: 'Auto-Moderation', value: 'automod' },
+                            { name: 'Member Join', value: 'memberJoin' },
+                            { name: 'Member Leave', value: 'memberLeave' },
+                            { name: 'Message Delete', value: 'messageDelete' },
+                            { name: 'Message Edit', value: 'messageEdit' }
+                        ))
+                .addBooleanOption(option =>
+                    option.setName('enabled')
+                        .setDescription('Enable or disable this log category')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('test')
+                .setDescription('Send a test log message')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Type of log to test')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Moderation', value: 'moderation' },
+                            { name: 'Auto-Moderation', value: 'automod' },
+                            { name: 'Member Events', value: 'member' }
+                        )))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
+    
+    new SlashCommandBuilder()
         .setName('automod')
         .setDescription('Configure auto-moderation settings')
         .addSubcommand(subcommand =>
@@ -334,6 +419,201 @@ function scheduleUnban(guildId, userId, duration, unit, reason) {
     }, durationMs);
 }
 
+// Logging system functions
+async function logModerationAction(guild, config, logData) {
+    if (!config.logging.enabled) {
+        console.log(`🔇 Logging disabled for ${guild.name}`);
+        return;
+    }
+    
+    const { type, action, moderator, target, reason, details = {} } = logData;
+    
+    // Determine which channel to use
+    let channelId = null;
+    let categoryEnabled = true;
+    
+    switch (type) {
+        case 'kick':
+            channelId = config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.kicks;
+            break;
+        case 'ban':
+            channelId = config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.bans;
+            break;
+        case 'unban':
+            channelId = config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.unbans;
+            break;
+        case 'timeout':
+            channelId = config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.timeouts;
+            break;
+        case 'warning':
+            channelId = config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.warnings;
+            break;
+        case 'automod':
+            channelId = config.logging.channels.automod || config.logging.channels.moderation;
+            categoryEnabled = config.logging.categories.automod;
+            console.log(`🤖 Auto-mod log attempt: channelId=${channelId}, categoryEnabled=${categoryEnabled}, type=${details.detectionType}`);
+            break;
+        case 'member_join':
+            channelId = config.logging.channels.member;
+            categoryEnabled = config.logging.categories.memberJoin;
+            break;
+        case 'member_leave':
+            channelId = config.logging.channels.member;
+            categoryEnabled = config.logging.categories.memberLeave;
+            break;
+        default:
+            channelId = config.logging.channels.moderation || config.logChannel;
+            console.log(`⚠️ Unknown log type: ${type}, using fallback channel: ${channelId}`);
+    }
+    
+    // Check if this category is enabled and we have a channel
+    if (!categoryEnabled) {
+        console.log(`🔇 Category ${type} is disabled`);
+        return;
+    }
+    
+    if (!channelId) {
+        console.log(`❌ No channel configured for ${type} logs`);
+        return;
+    }
+    
+    const logChannel = guild.channels.cache.get(channelId);
+    if (!logChannel) {
+        console.log(`❌ Log channel ${channelId} not found in ${guild.name}`);
+        return;
+    }
+    
+    // Create the log embed
+    const embed = await createLogEmbed(type, action, moderator, target, reason, details);
+    
+    try {
+        await logChannel.send({ embeds: [embed] });
+        console.log(`✅ Log sent successfully: ${type} - ${logChannel.name}`);
+    } catch (error) {
+        console.error(`❌ Failed to send log message to ${logChannel.name}: ${error.message}`);
+    }
+}
+
+async function createLogEmbed(type, action, moderator, target, reason, details) {
+    const colors = {
+        kick: 0xe74c3c,
+        ban: 0x8b0000,
+        unban: 0x27ae60,
+        timeout: 0xf39c12,
+        warning: 0xff8c00,
+        automod: 0x9b59b6,
+        member_join: 0x2ecc71,
+        member_leave: 0x95a5a6
+    };
+    
+    const icons = {
+        kick: '👢',
+        ban: '🔨',
+        unban: '✅',
+        timeout: '🔇',
+        warning: '⚠️',
+        automod: '🤖',
+        member_join: '📥',
+        member_leave: '📤'
+    };
+    
+    const titles = {
+        kick: 'Member Kicked',
+        ban: 'Member Banned',
+        unban: 'Member Unbanned',
+        timeout: 'Member Timed Out',
+        warning: 'Warning Issued',
+        automod: 'Auto-Moderation Action',
+        member_join: 'Member Joined',
+        member_leave: 'Member Left'
+    };
+    
+    let description = '';
+    
+    if (type === 'member_join' || type === 'member_leave') {
+        description = `**User:** ${target.tag} (${target.id})\n**Account Created:** <t:${Math.floor(target.createdTimestamp / 1000)}:R>`;
+        
+        if (type === 'member_join') {
+            description += `\n**Member Count:** ${details.memberCount || 'Unknown'}`;
+        }
+    } else {
+        description = `**User:** ${target.tag || target} (${target.id || 'Unknown'})\n**Moderator:** ${moderator.tag} (${moderator.id})\n**Reason:** ${reason}`;
+        
+        if (type === 'timeout' && details.duration) {
+            description += `\n**Duration:** ${details.duration}`;
+        }
+        
+        if (type === 'ban' && details.duration) {
+            description += `\n**Duration:** ${details.duration}\n**Type:** Temporary Ban`;
+        }
+        
+        if (type === 'warning') {
+            description += `\n**Severity:** ${details.severity || 'moderate'}\n**Warning ID:** ${details.warningId}`;
+            if (details.totalWarnings) {
+                description += `\n**Total Warnings:** ${details.totalWarnings}`;
+            }
+            if (details.escalation) {
+                description += `\n\n🔄 **Auto-Escalation:** ${details.escalation.action} (${details.escalation.threshold} warnings)`;
+            }
+        }
+        
+        if (type === 'automod') {
+            description += `\n**Detection Type:** ${details.detectionType}\n**Action:** Message Deleted`;
+            if (details.channel) {
+                description += `\n**Channel:** ${details.channel}`;
+            }
+        }
+    }
+    
+    const embed = new EmbedBuilder()
+        .setTitle(`${icons[type]} ${titles[type]}`)
+        .setDescription(description)
+        .setColor(colors[type])
+        .setTimestamp();
+    
+    if (target && target.displayAvatarURL) {
+        embed.setThumbnail(target.displayAvatarURL());
+    }
+    
+    const caseId = `#${Date.now().toString().slice(-6)}`;
+    embed.setFooter({ text: `ModX Logs • Case ${caseId}` });
+    
+    return embed;
+}
+
+async function handleMemberJoin(member) {
+    const config = getServerConfig(member.guild.id);
+    
+    await logModerationAction(member.guild, config, {
+        type: 'member_join',
+        action: 'join',
+        moderator: null,
+        target: member.user,
+        reason: 'User joined the server',
+        details: {
+            memberCount: member.guild.memberCount
+        }
+    });
+}
+
+async function handleMemberLeave(member) {
+    const config = getServerConfig(member.guild.id);
+    
+    await logModerationAction(member.guild, config, {
+        type: 'member_leave',
+        action: 'leave',
+        moderator: null,
+        target: member.user,
+        reason: 'User left the server',
+        details: {}
+    });
+}
+
 // Warning system functions
 function getUserWarnings(guildId, userId) {
     const key = `${guildId}-${userId}`;
@@ -430,40 +710,41 @@ async function checkWarningEscalation(guild, user, config, newWarningCount) {
 }
 
 async function logWarningAction(guild, action, user, moderator, warning, escalation = null, config) {
-    if (!config.logChannel) return;
-    
-    const logChannel = guild.channels.cache.get(config.logChannel);
-    if (!logChannel) return;
-    
-    let title, description, color;
-    
-    if (action === 'warn') {
-        title = '⚠️ Warning Issued';
-        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Reason:** ${warning.reason}\n**Severity:** ${warning.severity}\n**Warning ID:** ${warning.id}`;
-        color = 0xf39c12;
-        
-        if (escalation) {
-            description += `\n\n🔄 **Auto-Escalation Triggered:**\n**Action:** ${escalation.action}\n**Threshold:** ${escalation.threshold} warnings`;
-            if (escalation.duration) {
-                description += `\n**Duration:** ${escalation.duration} minutes`;
-            }
+    const logData = {
+        type: 'warning',
+        action: action,
+        moderator: moderator,
+        target: user,
+        reason: warning.reason || `${action} warning`,
+        details: {
+            severity: warning.severity,
+            warningId: warning.id,
+            totalWarnings: warning.count,
+            escalation: escalation
         }
-    } else if (action === 'remove') {
-        title = '🗑️ Warning Removed';
-        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Warning ID:** ${warning.id}`;
-        color = 0x27ae60;
-    } else if (action === 'clear') {
-        title = '🧹 Warnings Cleared';
-        description = `**User:** ${user.tag} (${user.id})\n**Moderator:** ${moderator.tag}\n**Warnings Cleared:** ${warning.count}`;
-        color = 0x3498db;
-    }
+    };
     
-    const embed = createEmbed(title, description, color);
+    await logModerationAction(guild, config, logData);
+}
+
+async function logAutoModAction(guild, detection, user, config, messageChannel) {
+    const logData = {
+        type: 'automod',
+        action: 'message_delete',
+        moderator: { tag: 'AutoMod', id: 'system' },
+        target: user,
+        reason: detection.reason,
+        details: {
+            detectionType: detection.type,
+            channel: messageChannel ? `<#${messageChannel.id}>` : 'Unknown Channel'
+        }
+    };
     
     try {
-        await logChannel.send({ embeds: [embed] });
+        await logModerationAction(guild, config, logData);
+        console.log(`✅ Auto-mod action logged: ${detection.type} - ${user.tag}`);
     } catch (error) {
-        console.log('Could not send to warning log channel:', error.message);
+        console.error(`❌ Failed to log auto-mod action: ${error.message}`);
     }
 }
 
@@ -552,28 +833,10 @@ async function handleAutoModAction(message, detection, config) {
         const warningMsg = await message.channel.send({ embeds: [embed] });
         setTimeout(() => warningMsg.delete().catch(() => {}), 5000);
         
-        await logAutoModAction(message.guild, detection, message.author, config);
+        // Pass the message channel for proper logging
+        await logAutoModAction(message.guild, detection, message.author, config, message.channel);
     } catch (error) {
         console.error('Auto-mod action failed:', error);
-    }
-}
-
-async function logAutoModAction(guild, detection, user, config) {
-    if (!config.logChannel) return;
-    
-    const logChannel = guild.channels.cache.get(config.logChannel);
-    if (!logChannel) return;
-    
-    const embed = createEmbed(
-        '🤖 Auto-Moderation Action',
-        `**User:** ${user.tag} (${user.id})\n**Reason:** ${detection.reason}\n**Type:** ${detection.type}\n**Action:** Message deleted`,
-        0xe67e22
-    );
-    
-    try {
-        await logChannel.send({ embeds: [embed] });
-    } catch (error) {
-        console.log('Could not send to auto-mod log channel:', error.message);
     }
 }
 
@@ -614,6 +877,9 @@ client.on('guildCreate', (guild) => {
     getServerConfig(guild.id);
 });
 
+client.on('guildMemberAdd', handleMemberJoin);
+client.on('guildMemberRemove', handleMemberLeave);
+
 // Auto-moderation message handler
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild || message.system) return;
@@ -621,6 +887,7 @@ client.on('messageCreate', async (message) => {
     const config = getServerConfig(message.guild.id);
     const detection = detectSpam(message, config);
     if (detection) {
+        console.log(`🚨 Spam detected: ${detection.type} - ${detection.reason} - User: ${message.author.tag}`);
         await handleAutoModAction(message, detection, config);
     }
 });
@@ -664,6 +931,15 @@ client.on('interactionCreate', async (interaction) => {
                 0x00ff00
             );
             await interaction.reply({ embeds: [embed] });
+            
+            const config = getServerConfig(interaction.guild.id);
+            await logModerationAction(interaction.guild, config, {
+                type: 'kick',
+                action: 'kick',
+                moderator: interaction.user,
+                target: targetUser,
+                reason: reason
+            });
         }
         
         else if (commandName === 'ban') {
@@ -724,6 +1000,16 @@ client.on('interactionCreate', async (interaction) => {
                 );
                 await interaction.reply({ embeds: [embed] });
                 
+                const config = getServerConfig(interaction.guild.id);
+                await logModerationAction(interaction.guild, config, {
+                    type: 'ban',
+                    action: banType.toLowerCase(),
+                    moderator: interaction.user,
+                    target: targetUser,
+                    reason: reason,
+                    details: duration && unit ? { duration: formatDuration(duration, unit) } : {}
+                });
+                
             } catch (error) {
                 console.error('Ban error:', error);
                 let errorMessage = 'Something went wrong while banning the user!';
@@ -766,6 +1052,15 @@ client.on('interactionCreate', async (interaction) => {
                     0x00ff00
                 );
                 await interaction.reply({ embeds: [embed] });
+                
+                const config = getServerConfig(interaction.guild.id);
+                await logModerationAction(interaction.guild, config, {
+                    type: 'unban',
+                    action: 'unban',
+                    moderator: interaction.user,
+                    target: unbannedUser,
+                    reason: reason
+                });
                 
             } catch (error) {
                 console.error('Unban error:', error);
@@ -828,6 +1123,16 @@ client.on('interactionCreate', async (interaction) => {
                 0x00ff00
             );
             await interaction.reply({ embeds: [embed] });
+            
+            const config = getServerConfig(interaction.guild.id);
+            await logModerationAction(interaction.guild, config, {
+                type: 'timeout',
+                action: 'timeout',
+                moderator: interaction.user,
+                target: targetUser,
+                reason: reason,
+                details: { duration: durationText }
+            });
         }
         
         else if (commandName === 'warn') {
@@ -896,7 +1201,12 @@ client.on('interactionCreate', async (interaction) => {
                 // User has DMs disabled
             }
             
-            await logWarningAction(interaction.guild, 'warn', targetUser, interaction.user, warning, escalation, config);
+            await logWarningAction(interaction.guild, 'warn', targetUser, interaction.user, {
+                reason: reason,
+                severity: severity,
+                id: warning.id,
+                count: warningCount
+            }, escalation, config);
         }
         
         else if (commandName === 'warnings') {
@@ -1000,6 +1310,167 @@ client.on('interactionCreate', async (interaction) => {
             await logWarningAction(interaction.guild, 'clear', targetUser, interaction.user, { count: clearedCount }, null, config);
         }
         
+        else if (commandName === 'logs') {
+            const subcommand = interaction.options.getSubcommand();
+            const config = getServerConfig(interaction.guild.id);
+            
+            if (subcommand === 'set') {
+                const type = interaction.options.getString('type');
+                const channel = interaction.options.getChannel('channel');
+                
+                if (channel.type !== 0) {
+                    const embed = createEmbed(
+                        '❌ Invalid Channel',
+                        'Please select a text channel for logging.',
+                        0xff0000
+                    );
+                    return interaction.reply({ embeds: [embed], ephemeral: true });
+                }
+                
+                config.logging.channels[type] = channel.id;
+                
+                const typeNames = {
+                    moderation: 'Moderation Actions',
+                    automod: 'Auto-Moderation',
+                    member: 'Member Events',
+                    message: 'Message Events'
+                };
+                
+                const embed = createEmbed(
+                    '✅ Logging Channel Set',
+                    `**Type:** ${typeNames[type]}\n**Channel:** ${channel}\n\nThis channel will now receive ${typeNames[type].toLowerCase()} logs.`,
+                    0x00ff00
+                );
+                
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            else if (subcommand === 'settings') {
+                const logging = config.logging;
+                
+                let channelSettings = '**Log Channels:**\n';
+                channelSettings += `• Moderation: ${logging.channels.moderation ? `<#${logging.channels.moderation}>` : 'Not set'}\n`;
+                channelSettings += `• Auto-Moderation: ${logging.channels.automod ? `<#${logging.channels.automod}>` : 'Not set'}\n`;
+                channelSettings += `• Member Events: ${logging.channels.member ? `<#${logging.channels.member}>` : 'Not set'}\n`;
+                channelSettings += `• Message Events: ${logging.channels.message ? `<#${logging.channels.message}>` : 'Not set'}\n\n`;
+                
+                let categorySettings = '**Log Categories:**\n';
+                const categories = logging.categories;
+                categorySettings += `• Kicks: ${categories.kicks ? '✅' : '❌'}\n`;
+                categorySettings += `• Bans: ${categories.bans ? '✅' : '❌'}\n`;
+                categorySettings += `• Unbans: ${categories.unbans ? '✅' : '❌'}\n`;
+                categorySettings += `• Timeouts: ${categories.timeouts ? '✅' : '❌'}\n`;
+                categorySettings += `• Warnings: ${categories.warnings ? '✅' : '❌'}\n`;
+                categorySettings += `• Auto-Moderation: ${categories.automod ? '✅' : '❌'}\n`;
+                categorySettings += `• Member Join: ${categories.memberJoin ? '✅' : '❌'}\n`;
+                categorySettings += `• Member Leave: ${categories.memberLeave ? '✅' : '❌'}\n`;
+                categorySettings += `• Message Delete: ${categories.messageDelete ? '✅' : '❌'}\n`;
+                categorySettings += `• Message Edit: ${categories.messageEdit ? '✅' : '❌'}\n\n`;
+                
+                const embed = createEmbed(
+                    '📊 Logging Settings',
+                    `**Status:** ${logging.enabled ? '✅ Enabled' : '❌ Disabled'}\n\n${channelSettings}${categorySettings}*Use \`/logs set\` to configure channels and \`/logs toggle\` to enable/disable categories.*`,
+                    0x3498db
+                );
+                
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            else if (subcommand === 'toggle') {
+                const category = interaction.options.getString('category');
+                const enabled = interaction.options.getBoolean('enabled');
+                
+                config.logging.categories[category] = enabled;
+                
+                const categoryNames = {
+                    kicks: 'Kicks',
+                    bans: 'Bans',
+                    unbans: 'Unbans',
+                    timeouts: 'Timeouts',
+                    warnings: 'Warnings',
+                    automod: 'Auto-Moderation',
+                    memberJoin: 'Member Join Events',
+                    memberLeave: 'Member Leave Events',
+                    messageDelete: 'Message Delete Events',
+                    messageEdit: 'Message Edit Events'
+                };
+                
+                const statusText = enabled ? 'enabled' : 'disabled';
+                const embed = createEmbed(
+                    '⚙️ Log Category Updated',
+                    `**Category:** ${categoryNames[category]}\n**Status:** ${statusText}\n\n${categoryNames[category]} logs are now ${statusText}.`,
+                    enabled ? 0x00ff00 : 0xff0000
+                );
+                
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+            
+            else if (subcommand === 'test') {
+                const type = interaction.options.getString('type');
+                const config = getServerConfig(interaction.guild.id);
+                
+                let testLogData = {};
+                
+                switch (type) {
+                    case 'moderation':
+                        testLogData = {
+                            type: 'kick',
+                            action: 'test',
+                            moderator: interaction.user,
+                            target: { tag: 'TestUser#1234', id: '123456789012345678' },
+                            reason: 'This is a test log message',
+                            details: {}
+                        };
+                        break;
+                    case 'automod':
+                        testLogData = {
+                            type: 'automod',
+                            action: 'test',
+                            moderator: { tag: 'AutoMod', id: 'system' },
+                            target: interaction.user,
+                            reason: 'Test repeated character spam detection',
+                            details: {
+                                detectionType: 'spam',
+                                channel: `<#${interaction.channel.id}>`
+                            }
+                        };
+                        break;
+                    case 'member':
+                        testLogData = {
+                            type: 'member_join',
+                            action: 'test',
+                            moderator: null,
+                            target: { tag: 'TestUser#1234', id: '123456789012345678', createdTimestamp: Date.now() - 86400000 },
+                            reason: 'Test member join event',
+                            details: {
+                                memberCount: interaction.guild.memberCount
+                            }
+                        };
+                        break;
+                }
+                
+                try {
+                    await logModerationAction(interaction.guild, config, testLogData);
+                    
+                    const embed = createEmbed(
+                        '✅ Test Log Sent',
+                        `A test ${type} log has been sent to the configured logging channel.\n\n**Debug Info:**\n• Type: ${type}\n• Channel: ${config.logging.channels[type] || config.logging.channels.moderation || 'None'}\n• Category Enabled: ${type === 'automod' ? config.logging.categories.automod : 'N/A'}`,
+                        0x00ff00
+                    );
+                    
+                    await interaction.reply({ embeds: [embed], ephemeral: true });
+                } catch (error) {
+                    const embed = createEmbed(
+                        '❌ Test Failed',
+                        `Failed to send test log. Make sure you have configured a logging channel for this type.\n\nError: ${error.message}`,
+                        0xff0000
+                    );
+                    
+                    await interaction.reply({ embeds: [embed], ephemeral: true });
+                }
+            }
+        }
+        
         else if (commandName === 'automod') {
             const subcommand = interaction.options.getSubcommand();
             const config = getServerConfig(interaction.guild.id);
@@ -1040,9 +1511,11 @@ client.on('interactionCreate', async (interaction) => {
                         `• Max Mentions: ${safeConfig.maxMentions}\n` +
                         `• Max Repeated Chars: ${safeConfig.maxRepeatedChars}\n` +
                         `• Message Rate Limit: ${safeConfig.maxMessagesInWindow} messages in ${safeConfig.spamTimeWindow/1000} seconds\n\n` +
+                        `**Logging:**\n` +
+                        `• Auto-mod Logs: ${config.logging.categories.automod ? '✅ Enabled' : '❌ Disabled'}\n` +
+                        `• Auto-mod Channel: ${config.logging.channels.automod ? `<#${config.logging.channels.automod}>` : (config.logging.channels.moderation ? `<#${config.logging.channels.moderation}> (fallback)` : 'Not set')}\n\n` +
                         `**Actions:**\n` +
-                        `• Punishment Type: ${safeConfig.punishmentType}\n` +
-                        `• Log Channel: ${config.logChannel ? `<#${config.logChannel}>` : 'Not set'}\n\n` +
+                        `• Punishment Type: ${safeConfig.punishmentType}\n\n` +
                         `${!safeConfig.enabled ? '⚠️ *Auto-moderation is currently disabled. Use `/automod toggle true` to enable.*\n\n' : ''}` +
                         `*Use other automod commands to modify these settings*`,
                         safeConfig.enabled ? 0x3498db : 0xf39c12
@@ -1105,29 +1578,23 @@ client.on('interactionCreate', async (interaction) => {
                 '📋 `/warnings <user>` - View user warnings\n' +
                 '🗑️ `/removewarn <user> <id>` - Remove specific warning\n' +
                 '🧹 `/clearwarnings <user> [reason]` - Clear all warnings\n\n' +
+                '**Logging System:**\n' +
+                '📊 `/logs set <type> <channel>` - Set logging channels\n' +
+                '⚙️ `/logs settings` - View logging configuration\n' +
+                '🔄 `/logs toggle <category> <enabled>` - Toggle log categories\n' +
+                '🧪 `/logs test <type>` - Send test log messages\n\n' +
                 '**Auto-Moderation Commands:**\n' +
                 '🛡️ `/automod toggle <enabled>` - Enable/disable auto-mod\n' +
                 '⚙️ `/automod settings` - View current auto-mod settings\n' +
                 '📝 `/automod caps <percentage>` - Set caps limit (1-100%)\n' +
                 '👥 `/automod mentions <count>` - Set mention limit (1-20)\n\n' +
-                '**Warning System Features:**\n' +
-                '• **Severity Levels** - Minor 🟡, Moderate 🟠, Severe 🔴\n' +
-                '• **Auto-Escalation** - 3 warnings → timeout, 5 → kick, 7 → ban\n' +
-                '• **User Notifications** - DM users when warned\n' +
-                '• **Warning Tracking** - Complete history with IDs\n' +
-                '• **Smart Management** - Remove specific warnings\n\n' +
-                '**Auto-Mod Features:**\n' +
-                '• **Caps Detection** - Removes messages with excessive capitals\n' +
-                '• **Mention Spam** - Prevents mass mention abuse\n' +
-                '• **Character Spam** - Stops repeated character spam (aaaaa)\n' +
-                '• **Rate Limiting** - Prevents rapid message spam\n' +
-                '• **Smart Bypass** - Admins and trusted roles skip auto-mod\n\n' +
-                '**Ban Examples:**\n' +
-                '• `/ban @user` - Permanent ban\n' +
-                '• `/ban @user Spamming 30 minutes` - 30-minute ban\n' +
-                '• `/ban @user Toxic behavior 2 hours` - 2-hour ban\n' +
-                '• `/ban @user Rule breaking 7 days` - 1-week ban\n\n' +
-                '**Time Units:** Minutes, Hours, Days\n\n' +
+                '**Logging Features:**\n' +
+                '• **Comprehensive Tracking** - All moderation actions logged\n' +
+                '• **Separate Channels** - Different log types in different channels\n' +
+                '• **Member Events** - Track joins and leaves\n' +
+                '• **Auto-Mod Logs** - Spam detection results\n' +
+                '• **Rich Embeds** - Professional formatting with user avatars\n' +
+                '• **Case IDs** - Unique tracking for each action\n\n' +
                 '*ModX - Complete moderation solution for Discord*',
                 0x5865F2
             );
