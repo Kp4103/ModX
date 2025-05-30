@@ -308,14 +308,6 @@ ModX/
 └── README.md            # This file
 ```
 
-### Testing Commands
-
-For faster development, use guild-specific commands:
-
-1. Get your server ID (Right-click server → Copy Server ID)
-2. Update `GUILD_ID` in `deploy-commands.js`
-3. Run `node deploy-commands.js` for instant updates
-
 ## 📊 Performance
 
 - **Memory Usage**: ~50MB average
