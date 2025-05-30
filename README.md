@@ -72,7 +72,6 @@
 
 ### Coming Soon
 - 🔗 **Link Filtering** - Control and whitelist external links
-- 📊 **Moderation Logs** - Comprehensive action logging with channels  
 - 🛡️ **Raid Protection** - Detect and prevent server raids
 - 🚫 **Custom Word Filters** - Block specific words and phrases
 - 🔧 **Web Dashboard** - Easy server configuration interface
